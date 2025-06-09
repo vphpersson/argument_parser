@@ -24,44 +24,32 @@ type base struct {
 	Nargs     string
 }
 
-func (bv *base) GetShortName() string {
-	return string(bv.ShortName)
+func (b *base) GetShortName() string {
+	return string(b.ShortName)
 }
 
-func (bv *base) GetLongName() string {
-	return bv.LongName
+func (b *base) GetLongName() string {
+	return b.LongName
 }
 
-func (bv *base) GetUsage() string {
-	return bv.Usage
+func (b *base) GetUsage() string {
+	return b.Usage
 }
 
-func (bv *base) GetRequired() bool {
-	return bv.Required
+func (b *base) GetRequired() bool {
+	return b.Required
 }
 
-func (bv *base) GetNargs() string {
-	return bv.Nargs
+func (b *base) GetNargs() string {
+	return b.Nargs
 }
 
-type IntVar struct {
+type IntOption struct {
 	base
 	Value *int
 }
 
-func NewIntVar(shortName rune, longName string, usage string, required bool, value *int) *IntVar {
-	return &IntVar{
-		base: base{
-			ShortName: shortName,
-			LongName:  longName,
-			Usage:     usage,
-			Required:  required,
-		},
-		Value: value,
-	}
-}
-
-func (intVar *IntVar) Set(in string) error {
+func (intVar *IntOption) Set(in string) error {
 	value, err := strconv.Atoi(in)
 	if err != nil {
 		return motmedelErrors.NewWithTrace(fmt.Errorf("strvconv atoi: %w", err))
@@ -76,13 +64,8 @@ func (intVar *IntVar) Set(in string) error {
 	return nil
 }
 
-type StringVar struct {
-	base
-	Value *string
-}
-
-func NewStringVar(shortName rune, longName string, usage string, required bool, value *string) *StringVar {
-	return &StringVar{
+func NewIntOption(shortName rune, longName string, usage string, required bool, value *int) *IntOption {
+	return &IntOption{
 		base: base{
 			ShortName: shortName,
 			LongName:  longName,
@@ -93,23 +76,109 @@ func NewStringVar(shortName rune, longName string, usage string, required bool, 
 	}
 }
 
-type BoolVar struct {
+type IntsOption struct {
 	base
-	Value *bool
+	Value *[]int
 }
 
-func (boolVar *BoolVar) Set(in string) error {
-	if boolVar.Value == nil {
+func (intsOption *IntsOption) Set(in string) error {
+	if intsOption.Value == nil {
 		return motmedelErrors.NewWithTrace(argumentParserErrors.ErrNilValue)
 	}
 
-	*boolVar.Value = true
+	value, err := strconv.Atoi(in)
+	if err != nil {
+		return motmedelErrors.NewWithTrace(fmt.Errorf("strvconv atoi: %w", err))
+	}
+
+	*intsOption.Value = append(*intsOption.Value, value)
+	return nil
+}
+
+func NewIntsOption(shortName rune, longName string, usage string, required bool, value *[]int) *IntsOption {
+	return &IntsOption{
+		base: base{
+			ShortName: shortName,
+			LongName:  longName,
+			Usage:     usage,
+			Required:  required,
+			Nargs:     "+",
+		},
+		Value: value,
+	}
+}
+
+type StringOption struct {
+	base
+	Value *string
+}
+
+func (stringOption *StringOption) Set(in string) error {
+	if stringOption.Value == nil {
+		return motmedelErrors.NewWithTrace(argumentParserErrors.ErrNilValue)
+	}
+
+	*stringOption.Value = in
 
 	return nil
 }
 
-func NewBoolVar(shortName rune, longName string, usage string, required bool, value *bool) *BoolVar {
-	return &BoolVar{
+func NewStringOption(shortName rune, longName string, usage string, required bool, value *string) *StringOption {
+	return &StringOption{
+		base: base{
+			ShortName: shortName,
+			LongName:  longName,
+			Usage:     usage,
+			Required:  required,
+		},
+		Value: value,
+	}
+}
+
+type StringsOption struct {
+	base
+	Value *[]string
+}
+
+func (stringsOption *StringsOption) Set(in string) error {
+	if stringsOption.Value == nil {
+		return motmedelErrors.NewWithTrace(argumentParserErrors.ErrNilValue)
+	}
+
+	*stringsOption.Value = append(*stringsOption.Value, in)
+	return nil
+}
+
+func NewStringsOption(shortName rune, longName string, usage string, required bool, value *[]string) *StringsOption {
+	return &StringsOption{
+		base: base{
+			ShortName: shortName,
+			LongName:  longName,
+			Usage:     usage,
+			Required:  required,
+			Nargs:     "+",
+		},
+		Value: value,
+	}
+}
+
+type BoolOption struct {
+	base
+	Value *bool
+}
+
+func (boolOption *BoolOption) Set(in string) error {
+	if boolOption.Value == nil {
+		return motmedelErrors.NewWithTrace(argumentParserErrors.ErrNilValue)
+	}
+
+	*boolOption.Value = true
+
+	return nil
+}
+
+func NewBoolOption(shortName rune, longName string, usage string, required bool, value *bool) *BoolOption {
+	return &BoolOption{
 		base: base{
 			ShortName: shortName,
 			LongName:  longName,
@@ -121,27 +190,17 @@ func NewBoolVar(shortName rune, longName string, usage string, required bool, va
 	}
 }
 
-func (stringVar *StringVar) Set(in string) error {
-	if stringVar.Value == nil {
-		return motmedelErrors.NewWithTrace(argumentParserErrors.ErrNilValue)
-	}
-
-	*stringVar.Value = in
-
-	return nil
-}
-
-type CountedVar struct {
+type CountedOption struct {
 	base
 	Count *int
 }
 
-func (countedVar *CountedVar) Set(in string) error {
-	if countedVar.Count == nil {
+func (countedOption *CountedOption) Set(in string) error {
+	if countedOption.Count == nil {
 		return motmedelErrors.NewWithTrace(argumentParserErrors.ErrNilValue)
 	}
 
-	*countedVar.Count++
+	*countedOption.Count++
 
 	return nil
 }

@@ -146,7 +146,7 @@ func (argumentParser *ArgumentParser) ParseArgs(arguments []string) error {
 					}
 
 					// Check if the argument is a combined option that takes a value.
-					if len(names) > 0 && opt.GetNargs() != "0" {
+					if len(names) > 1 && opt.GetNargs() != "0" {
 						return motmedelErrors.NewWithTrace(
 							fmt.Errorf("%w: %s", argumentParserErrors.ErrNonZeroArgCombinedOption, name),
 						)

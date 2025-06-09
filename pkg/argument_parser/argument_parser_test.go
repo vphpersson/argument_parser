@@ -14,34 +14,38 @@ var diffOpts = []cmp.Option{cmpopts.EquateEmpty()}
 func TestArgumentParserParseArgs(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
+	testCases := []struct {
 		name      string
 		options   []option.Option
 		args      []string
 		intValue  int
+		intsValue    []int
 		strValue  string
+		stringsValue []string
 		boolValue bool
 		wantErr   error
-	}
-
-	testCases := []testCase{
+	}{
 		{
 			name: "full",
 			options: []option.Option{
-				option.NewIntVar('i', "int", "An int option", false, nil),
-				option.NewStringVar('s', "str", "A string option", false, nil),
-				option.NewBoolVar('b', "bool", "A bool option", false, nil),
+				option.NewIntOption('i', "int", "An int option", false, nil),
+				option.NewStringOption('s', "str", "A string option", false, nil),
+				option.NewBoolOption('b', "bool", "A bool option", false, nil),
+				option.NewStringsOption('a', "array", "An array option", false, nil),
+				option.NewIntsOption('n', "numbers", "An array of ints option", false, nil),
 			},
-			args:      []string{"-i", "42", "--str", "abc", "--bool"},
+			args:      []string{"-i", "42", "--str", "abc", "--bool", "-a", "a", "b", "-n", "1", "2"},
 			intValue:  42,
+			intsValue: []int{1, 2},
 			strValue:  "abc",
+			stringsValue: []string{"a", "b"},
 			boolValue: true,
 			wantErr:   nil,
 		},
 		{
 			name: "multiple same",
 			options: []option.Option{
-				option.NewIntVar('i', "int", "An int option", false, nil),
+				option.NewIntOption('i', "int", "An int option", false, nil),
 			},
 			args:     []string{"-i", "1", "-i", "2"},
 			intValue: 2,
@@ -49,7 +53,7 @@ func TestArgumentParserParseArgs(t *testing.T) {
 		{
 			name: "unset option 1",
 			options: []option.Option{
-				option.NewIntVar('i', "int", "An int option", false, nil),
+				option.NewIntOption('i', "int", "An int option", false, nil),
 			},
 			args:    []string{"-i"},
 			wantErr: argumentParserErrors.ErrUnsetOption,
@@ -57,8 +61,8 @@ func TestArgumentParserParseArgs(t *testing.T) {
 		{
 			name: "unset option 2",
 			options: []option.Option{
-				option.NewIntVar('i', "int", "An int option", false, nil),
-				option.NewBoolVar('b', "bool", "A bool option", false, nil),
+				option.NewIntOption('i', "int", "An int option", false, nil),
+				option.NewBoolOption('b', "bool", "A bool option", false, nil),
 			},
 			args:    []string{"-i", "42", "--bool", "--int"},
 			wantErr: argumentParserErrors.ErrUnsetOption,
@@ -66,7 +70,7 @@ func TestArgumentParserParseArgs(t *testing.T) {
 		{
 			name: "name not found",
 			options: []option.Option{
-				option.NewIntVar('i', "int", "An int option", false, nil),
+				option.NewIntOption('i', "int", "An int option", false, nil),
 			},
 			args:    []string{"--unknown", "1"},
 			wantErr: argumentParserErrors.ErrNameNotFound,
@@ -74,39 +78,48 @@ func TestArgumentParserParseArgs(t *testing.T) {
 		{
 			name: "name not found",
 			options: []option.Option{
-				option.NewIntVar('i', "ii", "An int option", false, nil),
-				option.NewIntVar('p', "pp", "An int option", false, nil),
+				option.NewIntOption('i', "ii", "An int option", false, nil),
+				option.NewIntOption('p', "pp", "An int option", false, nil),
 			},
 			args:    []string{"-ip"},
 			wantErr: argumentParserErrors.ErrNonZeroArgCombinedOption,
 		},
-		// Add more test cases as needed
 	}
 
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			var intVal int
-			var strVal string
-			var boolVal bool
-			for _, opt := range tt.options {
-				switch v := opt.(type) {
-				case *option.IntVar:
-					v.Value = &intVal
-				case *option.StringVar:
-					v.Value = &strVal
-				case *option.BoolVar:
-					v.Value = &boolVal
+			var intValue int
+			var stringValue string
+			var boolValue bool
+			stringsValue := make([]string, 0)
+			intsValue := make([]int, 0)
+
+			for _, opt := range testCase.options {
+				switch typedOpt := opt.(type) {
+				case *option.IntOption:
+					typedOpt.Value = &intValue
+				case *option.StringOption:
+					typedOpt.Value = &stringValue
+				case *option.BoolOption:
+					typedOpt.Value = &boolValue
+				case *option.StringsOption:
+					typedOpt.Value = &stringsValue
+				case *option.IntsOption:
+					typedOpt.Value = &intsValue
+				default:
+					t.Fatalf("Unexpected option type: %T", opt)
+					return
 				}
 			}
 
-			parser := &ArgumentParser{Options: tt.options}
+			parser := &ArgumentParser{Options: testCase.options}
 
-			err := parser.ParseArgs(tt.args)
-			if tt.wantErr != nil {
-				if !errors.Is(err, tt.wantErr) {
-					t.Errorf("unexpected error = %v, want %v", err, tt.wantErr)
+			err := parser.ParseArgs(testCase.args)
+			if testCase.wantErr != nil {
+				if !errors.Is(err, testCase.wantErr) {
+					t.Errorf("unexpected error = %v, want %v", err, testCase.wantErr)
 					return
 				}
 				return
@@ -117,14 +130,25 @@ func TestArgumentParserParseArgs(t *testing.T) {
 				return
 			}
 
-			if tt.intValue != 0 && intVal != tt.intValue {
-				t.Errorf("Expected int value = %v, got %v", tt.intValue, intVal)
+			if intValue != testCase.intValue {
+				t.Errorf("Expected int value = %v, got %v", testCase.intValue, intValue)
 			}
 
-			if tt.strValue != "" && strVal != tt.strValue {
-				t.Errorf("Expected string value = %v, got %v", tt.strValue, strVal)
+			if stringValue != testCase.strValue {
+				t.Errorf("Expected string value = %v, got %v", testCase.strValue, stringValue)
 			}
-			// Similarly test for boolVal if used in cases
+
+			if boolValue != testCase.boolValue {
+				t.Errorf("Expected bool value = %v, got %v", testCase.boolValue, boolValue)
+			}
+
+			if diff := cmp.Diff(testCase.stringsValue, stringsValue, diffOpts...); diff != "" {
+				t.Errorf("strings value mismatch (-expected +got):\n%s", diff)
+			}
+
+			if diff := cmp.Diff(testCase.intsValue, intsValue, diffOpts...); diff != "" {
+				t.Errorf("ints value mismatch (-expected +got):\n%s", diff)
+			}
 		})
 	}
 }
@@ -159,7 +183,8 @@ func TestGetArgumentName(t *testing.T) {
 
 func TestMakeNameToOption(t *testing.T) {
 	t.Parallel()
-	tests := []struct {
+
+	testCases := []struct {
 		name     string
 		options  []option.Option
 		wantErr  error
@@ -173,16 +198,16 @@ func TestMakeNameToOption(t *testing.T) {
 		{
 			name: "Duplicate long name",
 			options: []option.Option{
-				option.NewIntVar('a', "same", "usage", false, nil),
-				option.NewIntVar('b', "same", "usage2", false, nil),
+				option.NewIntOption('a', "same", "usage", false, nil),
+				option.NewIntOption('b', "same", "usage2", false, nil),
 			},
 			wantErr: argumentParserErrors.ErrMultipleOptionsWithSameName,
 		},
 		{
 			name: "OK names",
 			options: []option.Option{
-				option.NewIntVar('a', "as", "usage", false, nil),
-				option.NewIntVar('b', "bs", "usage2", false, nil),
+				option.NewIntOption('a', "as", "usage", false, nil),
+				option.NewIntOption('b', "bs", "usage2", false, nil),
 			},
 			wantErr: nil,
 			contains: map[string]bool{
@@ -194,13 +219,13 @@ func TestMakeNameToOption(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := makeNameToOption(tc.options)
-			if tc.wantErr != nil {
-				if !errors.Is(err, tc.wantErr) {
-					t.Errorf("Expected error %v, got %v", tc.wantErr, err)
+			got, err := makeNameToOption(testCase.options)
+			if testCase.wantErr != nil {
+				if !errors.Is(err, testCase.wantErr) {
+					t.Errorf("Expected error %v, got %v", testCase.wantErr, err)
 				}
 				return
 			}
@@ -208,8 +233,8 @@ func TestMakeNameToOption(t *testing.T) {
 				t.Errorf("Unexpected error: %v", err)
 				return
 			}
-			if tc.contains != nil {
-				for name, wantPresent := range tc.contains {
+			if testCase.contains != nil {
+				for name, wantPresent := range testCase.contains {
 					_, found := got[name]
 					if found != wantPresent {
 						t.Errorf("Name %q present in map: %v, want %v", name, found, wantPresent)
