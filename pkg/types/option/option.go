@@ -4,6 +4,7 @@ import (
 	"fmt"
 	motmedelErrors "github.com/Motmedel/utils_go/pkg/errors"
 	argumentParserErrors "github.com/vphpersson/argument_parser/pkg/errors"
+	"os"
 	"strconv"
 )
 
@@ -201,6 +202,62 @@ func (countedOption *CountedOption) Set(in string) error {
 	}
 
 	*countedOption.Count++
+
+	return nil
+}
+
+func NewFileOption(shortName rune, longName string, usage string, required bool, file *os.File) *FileOption {
+	return &FileOption{
+		base: base{
+			ShortName: shortName,
+			LongName:  longName,
+			Usage:     usage,
+			Required:  required,
+		},
+		File: file,
+	}
+}
+
+func NewFileOptionExtra(
+	shortName rune,
+	longName string,
+	usage string,
+	required bool,
+	flag int,
+	mode os.FileMode,
+	file *os.File,
+) *FileOption {
+	return &FileOption{
+		base: base{
+			ShortName: shortName,
+			LongName:  longName,
+			Usage:     usage,
+			Required:  required,
+		},
+		File: file,
+		Flag: flag,
+		Mode: mode,
+	}
+}
+
+type FileOption struct {
+	base
+	File *os.File
+	Flag int
+	Mode os.FileMode
+}
+
+func (fileOption *FileOption) Set(in string) error {
+	if fileOption.File == nil {
+		return motmedelErrors.NewWithTrace(argumentParserErrors.ErrNilValue)
+	}
+
+	value, err := os.OpenFile(in, fileOption.Flag, fileOption.Mode)
+	if err != nil {
+		return motmedelErrors.NewWithTrace(fmt.Errorf("os open file: %w", err))
+	}
+
+	*fileOption.File = *value
 
 	return nil
 }
