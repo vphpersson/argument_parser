@@ -2,11 +2,12 @@ package argument_parser
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	argumentParserErrors "github.com/vphpersson/argument_parser/pkg/errors"
 	"github.com/vphpersson/argument_parser/pkg/types/option"
-	"testing"
 )
 
 var diffOpts = []cmp.Option{cmpopts.EquateEmpty()}
